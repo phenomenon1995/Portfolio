@@ -16,3 +16,9 @@ Here are some ideas to get you started:
 -->
 
 I'm an aspiring software dev, looking for a change of pace and a career upgrade!
+
+AI50: The problem sets from Harvard University's "CS50's Introduction to Artificial Intelligence with Python" through EdX.org that I completed
+CS50: The problem sets from Harvard University's "CS50's Introduction to Programming with Python" through EdX.org that I completed.
+LED Ravewear: CircuitPython code that is used for current iteration of my ravewear. I am currently working on refactoring that code to better adhere to OOP principles and to add additional functionality. 
+Tenmo P2P Payment Application: Tech Elevator Mini Capstone project. Client/Server application that emulates functions found in modern peer-to-peer payment apps using the RESTful API approach. Uses Java, Spring Framework, PostgreSQL.
+Vending Machine Application: Tech Elevator Mini Capstone project. Command Line Interface application that models the functionality of a vending machine where inventory is loaded, a customer can add money to vend items, transaction logs and sales reports can be generated.
