@@ -26,3 +26,5 @@ LED Ravewear: CircuitPython code that is used for current iteration of my ravewe
 Tenmo P2P Payment Application: Tech Elevator Mini Capstone project. Client/Server application that emulates functions found in modern peer-to-peer payment apps using the RESTful API approach. Uses Java, Spring Framework, PostgreSQL.
 
 Vending Machine Application: Tech Elevator Mini Capstone project. Command Line Interface application that models the functionality of a vending machine where inventory is loaded, a customer can add money to vend items, transaction logs and sales reports can be generated.
+
+createCalEvents: Pair programmed with coworker to o convert Employeee Schedule in Google Sheets to Google Calendar events for department employees.
