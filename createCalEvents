@@ -1,0 +1,351 @@
+names = ['Donelon, Bryan M', 'Williams, David A', 'Walker, Dustin R', 'Smith, Philip M',
+  'Percey, Jonathan M', 'Rhine, Jeffrey C', 'Kepes, Russell', 'Marincic, Martin R'] //holds the names here
+calendar_IDs = [
+  '4b4bcd6cb45ed2187a6c2ee11e404392cf6c09b8d6bd11e9b7b702141909a3c9@group.calendar.google.com' , 
+  '35e33dbe03554686259898f08cef1f3f5420c1e647695b75051e7934cce08b82@group.calendar.google.com' , 
+  '04a100e2dc1be15328d86ea154d0f22e523d9a6ac504fc5c86416dc15cc481bc@group.calendar.google.com' ,
+  '9700aaca9dc69c0f1f5d76c7d27d6330420f80e931a32e2a3ba9e514520063cf@group.calendar.google.com' , 
+  '87ea9e59dd09fca4cbae3b9d1d74fbf08767ae4f9c08d28c979529ca82558763@group.calendar.google.com' , 
+  '1a3f97080a4edfd489c685415133af2ddb993a48d99c4c364258862b257c1a3f@group.calendar.google.com' , 
+  'ac989ad379bce5b34522bf03c8c55b97babb60ce9959950e50453b4ea3ad02cf@group.calendar.google.com' , 
+  '68f6d1628c08e982319bff75fb48114f55bff78af8a6e2aa82fd7ccafd8620fd@group.calendar.google.com'
+  ] //holds Calendar IDs for the schedules, in same order as names
+
+ 
+ gallShifts = []; // global will hold all shifts
+ gdates = [];
+ gdate_range = [];
+ gsheet2 = SpreadsheetApp.openById('1bBC8jAY7p6Yd7Q9F2ANq5rLOF570-qXZPvcfzkKcrdA').getSheetByName('calSchedule')
+ alarmPref =[ [90,80,75,60,30],[],[],[],[],[],[],[]];
+
+function createArrays(){ //converts schedule in "BulkSChedulifier to an multidimensional array, where each element is one persons entire week of shcedules, as a Four Date objects(Begin Shift, Begin Meal, End Shift, End Meal)"
+  spreadsheet = SpreadsheetApp.openById('1bBC8jAY7p6Yd7Q9F2ANq5rLOF570-qXZPvcfzkKcrdA')
+  sheet = spreadsheet.getSheetByName('BulkSchedulifier') //make object out of it
+  sheet2 = spreadsheet.getSheetByName('calSchedule') //make object out of it
+
+
+  //date_range = sheet.getRange('AJ1:AP1').getValues() //row with date range
+  range = sheet2.getRange("A1").getValues()[0][0]
+  range = '$B$2:' + range 
+  shift_range = '$B$3:$' + range.substring(6,7) +"$4"
+  date_range = sheet2.getRange(range).getValues()
+  dates = [] //holds the days of the schedule range
+  for(i in date_range[0]){// create array of dates
+  
+    dates.push(date_range[0][i]) 
+    i += 1
+  }// close date gathering loop
+  /*//name_range = sheet.getRange('AI2:AI17').getValues() //grab names and some garbage
+  names = []
+  for (i in name_range){ //gets rid of the garbage, leaves the names
+    if (name_range[i].toString() != '---'){
+    names.push(name_range[i].toString()) //create array of names
+    i += 1
+    }//close garbage collection loop 
+  } //close name collection loop*/
+
+  allShifts = [] //will hold all shifts 
+ for(e in names){ //for each employee, gather the HH:MM stuff of the shifts
+    var rx = /(\d{1,2}):(\d{1,2}) (AM|PM) - (\d{1,2}):(\d{1,2}) (AM|PM)/
+    //shift_array = sheet.getRange('AJ2:AP3').offset(2*e,0).getValues() //iterate through each employee entire schedule
+    shift_array = sheet2.getRange(shift_range).offset(2*e,0).getValues()
+    var temp = [] //temp holding for one employee's whole schedule
+    console.log(names[e])
+    
+    for(d in shift_array[0]){ //convert strings to HH:MM ints
+      var shifttext = shift_array[0][d] //text to search with RegExes
+      var lunchtext = shift_array[1][d]
+      var shift_matches = shifttext.match(rx) //use RegExes to harvest HH MM AM|PM
+      var lunch_matches = lunchtext.match(rx) 
+      if (shift_matches){ //convert AM/PM to 24hr times
+        if(shift_matches[1] == "12"){shift_matches[1] = 0}
+        if(shift_matches[3] == "PM"){shift_matches[1] = parseInt(shift_matches[1])+12}
+        if(shift_matches[4] == "12"){shift_matches[4] = 0}
+        if(shift_matches[6] == "PM"){shift_matches[4] = parseInt(shift_matches[4])+12}
+        var s = shift_matches.slice(1,7)
+        if(lunch_matches[1] == "12"){lunch_matches[1] = 0}
+        if(lunch_matches[3] == "PM"){lunch_matches[1] = parseInt(lunch_matches[1])+12}
+        if(lunch_matches[4] == "12"){lunch_matches[4] = 0}
+        if(lunch_matches[6] == "PM"){lunch_matches[4] = parseInt(lunch_matches[4])+12}
+        l = lunch_matches.slice(1,7)
+        temp.push(Array(parseInt(s[0]), parseInt(s[1]), //add each employees shift to   their temp schedule array
+                   parseInt(l[0]), parseInt(l[1]),
+                    parseInt(l[3]), parseInt(l[4]),
+                    parseInt(s[3]), parseInt(s[4]))) //force everything into an INT
+        } else {
+          temp.push(Array(0,0,0,0,0,0,0,0)) //if they are off
+      }//end if else conditional for creating schedule array.
+      d += 1 //go to the next day
+    } // end day loop
+    allShifts.push(temp)
+    //console.log(names[e], "\n", allShifts[e])
+    e += 1 //next employee
+  } // end employee loop  
+
+  for (e in allShifts){  // create Date object arrays for each person's schedule
+    for(d in dates){
+      first_half_beginning = new  Date(dates[d])
+      first_half_end = new  Date(dates[d])
+      second_half_beginning = new  Date(dates[d])
+      second_half_end = new  Date(dates[d]) //create new date objects each loop based on the day of the schedule
+
+      //create 4 date objects for segmented shift times
+      first_half_beginning.setHours(allShifts[e][d][0],allShifts[e][d][1])
+      first_half_end.setHours(allShifts[e][d][2],allShifts[e][d][3])
+      second_half_beginning.setHours(allShifts[e][d][4],allShifts[e][d][5])
+      second_half_end.setHours(allShifts[e][d][6],allShifts[e][d][7])
+      //update employee's schedule with the new Date format
+      allShifts[e][d] = Array(first_half_beginning, first_half_end, second_half_beginning, second_half_end)
+    }// end each shift loop
+   }// end allShifts loop
+  //allShifts now contains all employees full schedules as date objects
+//////////////////////////////////////////////////////////// CALL A POPULATE FUNCTION ON LINE 95 ///////////////////////////////////////////////////////
+populate("all", allShifts);
+
+} // end createArrays Function
+
+function populate_all(shifts){ //get calendars for all employees and create events
+  for(e in shifts){
+    calendar = CalendarApp.getCalendarById(calendar_IDs[e]) 
+      populate_one(e,shifts, calendar)
+      console.log("TEST", e)
+  }//end of employee selection loop
+}//end of populate_all function 
+
+ function populate_one(e,shifts, calendar){ //get calendear for one employee and create events
+  //TODO: Temp index for an employee, will eventually be a value inputted and passed in
+  /*name = names[e].split(" ")
+  initials = name[1].slice(0,1) + name[0].slice(0,1)
+  calendar_name = names[e].split(" ")[1] + "'s Schedule"
+  calendar_name.toString()*/
+  
+  
+  for(d in shifts[e]){ 
+    //event = [];
+    //event = calendar.getEventsForDay(date_range[0][d])
+    var ct = new Date(date_range[0][d])
+    ct.setHours(0,0,1)
+    var et = new Date(date_range[0][d])
+    et.setHours(23,59,59)
+  
+    var event = calendar.getEvents(ct,et)
+    console.log(date_range[0][d])
+    console.log(names[e],"Day", d)
+    //friends neighbors countrymen, lend me your ears, this is a quick and dirty check to see if the shift in sched is different from the event in the calendar. not efficient but works
+    if( event[0] != undefined){
+      if (event[0].getStartTime().getHours() != shifts[e][d][0].getHours()){
+           for(ev in event){
+            //console.log("deleted one on: " + event[ev].getStartTime())
+           event[ev].deleteEvent()
+          } 
+      }
+    }
+
+    if(shifts[e][d][0].getHours() != 0 && event[0] == undefined){ //if not OFF AND Empty, create shift
+      calendar.createEvent("Work", shifts[e][d][0], shifts[e][d][3], {desciption: names[e]})
+      // create lunch
+      calendar.createEvent("Lunch", shifts[e][d][1], shifts[e][d][2])    
+    }
+    else{
+      console.log("it got to else for",shifts[e][d][0].getDate()," shift:",shifts[e][d][0].getHours(),"event decsription:",event[0])
+      } // end if
+  } //finish event creation loop 
+} //end of populate_one function 
+
+
+/*function delete_calendar(option = "n"){//delete some or all calendars
+    rx = /.*(Schedule)/
+    calendars = CalendarApp.getAllCalendars()
+    var schedule_calendars = new Array()
+    for(c in calendars){ //find schedule calendars
+      let name = calendars[c].getName()
+      if(name.match(rx) != null){//found a schedule calendar
+        schedule_calendars.push(calendars[c])
+        //console.log(calendars[c].getName(), "found!")
+      }//end if
+    }//end calendar loop
+    for (c in calendars){console.log(c, "|", calendars[c].getName())}
+
+  switch (true){//switch statement to determine if delete n, all, or none calendars
+    case (option == "n"):
+       break;
+    case (Number.isInteger(option)):
+      console.log("Deleting ", option );
+      calendars[option].deleteCalendar()
+      break;
+    case (option == "all"):
+      for (c in schedule_calendars){
+        schedule_calendars[c].deleteCalendar()
+      }
+      break;
+  }// end switch statement
+  
+  
+}//end of delete_calendar function*/
+
+function delete_events(employee = -1 ,start_date, end_date){ 
+  events = CalendarApp.getCalendarById(calendar_IDs[employee]).getEvents(start_date, end_date);
+  for(e in events){
+    console.log(e,events[e].getTitle())
+    events[e].deleteEvent()
+  }
+}
+
+function populate(option = "all", shifts, e = -1){
+  calendar = CalendarApp.getCalendarById(calendar_IDs[e])
+  switch (option){//switch statement to determine if populate one or all
+    case ("one"):
+      populate_one(e, shifts,calendar)
+      break;
+    case ("all"):
+      populate_all(shifts);
+      break;
+  } //end switch
+}// end of populate function
+
+function test(){
+  f = new Date("2024-1-8"),g = new Date("2024-1-6");
+
+//delete_events(0,f,g);
+console.log(CalendarApp.getCalendarById(calendar_IDs[5]).getEventsForDay(f)[0].getTitle())
+}
+
+function remind(employee = 0){
+  assembleShifts(findDateRange());
+  getWork(0);
+  
+}
+
+function getWork(employee){
+ calendar = CalendarApp.getCalendarById(calendar_IDs[employee])
+   for(day in gallShifts[employee]){ 
+    console.log(gallShifts[employee][day])
+    sevent = [];
+    var ct = new Date(gallShifts[employee][day][0])
+    ct.setHours(0,0,1)
+    var et = new Date(gallShifts[employee][day][0])
+    et.setHours(23,59,59)
+    console.log(ct,et)
+    var sevent = calendar.getEvents(ct,et)
+    console.log(gdate_range[0][day])
+    console.log(names[employee],"Day", day)
+    if(sevent[0]!=undefined){
+    if(sevent[0].getTitle() == "Work"){
+      addReminders(employee,sevent[0]);
+      //console.log("hi")
+    }
+    }
+  } 
+} 
+
+
+
+function addReminders(employee,work){ 
+    for(minB in alarmPref[employee]){
+    work.addPopupReminder(alarmPref[employee][minB])
+    }
+}
+
+//this is the all shif maker from create arrays, i just wanted a cute copy to use elsewhere
+
+function findDateRange(){
+  spreadsheet = SpreadsheetApp.openById('1bBC8jAY7p6Yd7Q9F2ANq5rLOF570-qXZPvcfzkKcrdA')
+  sheet = spreadsheet.getSheetByName('BulkSchedulifier') //make object out of it
+  sheet2 = spreadsheet.getSheetByName('calSchedule') //make object out of it
+
+
+  //date_range = sheet.getRange('AJ1:AP1').getValues() //row with date range
+  range = gsheet2.getRange("A1").getValues()[0][0]
+  range = '$B$2:' + range 
+  shift_range = '$B$3:$' + range.substring(6,7) +"$4"
+  gdate_range = gsheet2.getRange(range).getValues()
+  gdates = [] //holds the days of the schedule range
+  for(i in gdate_range[0]){// create array of gdates
+    gdates.push(gdate_range[0][i]) 
+    i += 1
+  }
+  return shift_range
+}
+function assembleShifts(shift_range){
+  
+  
+  for(e in names){ //for each employee, gather the HH:MM stuff of the shifts
+    var rx = /(\d{1,2}):(\d{1,2}) (AM|PM) - (\d{1,2}):(\d{1,2}) (AM|PM)/
+    //shift_array = sheet.getRange('AJ2:AP3').offset(2*e,0).getValues() //iterate through each employee entire schedule
+    shift_array = gsheet2.getRange(shift_range).offset(2*e,0).getValues()
+    var temp = [] //temp holding for one employee's whole schedule
+    
+    for(d in shift_array[0]){ //convert strings to HH:MM ints
+      var shifttext = shift_array[0][d] //text to search with RegExes
+      var lunchtext = shift_array[1][d]
+      var shift_matches = shifttext.match(rx) //use RegExes to harvest HH MM AM|PM
+      var lunch_matches = lunchtext.match(rx) 
+      
+      if (shift_matches){ //convert AM/PM to 24hr times
+        if(shift_matches[1] == "12"){shift_matches[1] = 0}
+        if(shift_matches[3] == "PM"){shift_matches[1] = parseInt(shift_matches[1])+12}
+        if(shift_matches[4] == "12"){shift_matches[4] = 0}
+        if(shift_matches[6] == "PM"){shift_matches[4] = parseInt(shift_matches[4])+12}
+        var s = shift_matches.slice(1,7)
+        if(lunch_matches[1] == "12"){lunch_matches[1] = 0}
+        if(lunch_matches[3] == "PM"){lunch_matches[1] = parseInt(lunch_matches[1])+12}
+        if(lunch_matches[4] == "12"){lunch_matches[4] = 0}
+        if(lunch_matches[6] == "PM"){lunch_matches[4] = parseInt(lunch_matches[4])+12}
+        l = lunch_matches.slice(1,7)
+        temp.push(Array(parseInt(s[0]), parseInt(s[1]), //add each employees shift to   their temp schedule array
+                   parseInt(l[0]), parseInt(l[1]),
+                    parseInt(l[3]), parseInt(l[4]),
+                    parseInt(s[3]), parseInt(s[4]))) //force everything into an INT
+        } else {
+          temp.push(Array(0,0,0,0,0,0,0,0)) //if they are off
+      }//end if else conditional for creating schedule array.
+      d += 1 //go to the next day
+    } // end day loop
+    gallShifts.push(temp)
+    //console.log(names[e], "\n", gallShifts[e])
+    e += 1 //next employee
+  } // end employee loop  
+
+  for (e in gallShifts){  // create Date object arrays for each person's schedule
+    for(d in gdates){
+      first_half_beginning = new  Date(gdates[d])
+      first_half_end = new  Date(gdates[d])
+      second_half_beginning = new  Date(gdates[d])
+      second_half_end = new  Date(gdates[d]) //create new date objects each loop based on the day of the schedule
+
+      //create 4 date objects for segmented shift times
+      first_half_beginning.setHours(gallShifts[e][d][0],gallShifts[e][d][1])
+      first_half_end.setHours(gallShifts[e][d][2],gallShifts[e][d][3])
+      second_half_beginning.setHours(gallShifts[e][d][4],gallShifts[e][d][5])
+      second_half_end.setHours(gallShifts[e][d][6],gallShifts[e][d][7])
+      //update employee's schedule with the new Date format
+      gallShifts[e][d] = Array(first_half_beginning, first_half_end, second_half_beginning, second_half_end)
+   }
+  }
+}
+
+
+function doesWork(){
+  employee = 0
+ var calendar_IDs = [
+  '4b4bcd6cb45ed2187a6c2ee11e404392cf6c09b8d6bd11e9b7b702141909a3c9@group.calendar.google.com' , 
+  '35e33dbe03554686259898f08cef1f3f5420c1e647695b75051e7934cce08b82@group.calendar.google.com' , 
+  '04a100e2dc1be15328d86ea154d0f22e523d9a6ac504fc5c86416dc15cc481bc@group.calendar.google.com' ,
+  '9700aaca9dc69c0f1f5d76c7d27d6330420f80e931a32e2a3ba9e514520063cf@group.calendar.google.com' , 
+  '87ea9e59dd09fca4cbae3b9d1d74fbf08767ae4f9c08d28c979529ca82558763@group.calendar.google.com' , 
+  '1a3f97080a4edfd489c685415133af2ddb993a48d99c4c364258862b257c1a3f@group.calendar.google.com' , 
+  'ac989ad379bce5b34522bf03c8c55b97babb60ce9959950e50453b4ea3ad02cf@group.calendar.google.com' , 
+  '68f6d1628c08e982319bff75fb48114f55bff78af8a6e2aa82fd7ccafd8620fd@group.calendar.google.com'
+  ]
+calendar = CalendarApp.getCalendarById(calendar_IDs[employee]) 
+console.log(calendar_IDs[employee])
+var tday = new Date
+var event = calendar.getEventsForDay(tday)
+var cTime = tday.getHours();
+var wTime = 100
+//if (event[0] != undefined ){wTime = event[0].getStartTime().getHours()}
+
+var tts = wTime - cTime
+console.log(tts)
+if (tts == 2 ){coffee.sens()}
+}
