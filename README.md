@@ -23,6 +23,8 @@ CS50: The problem sets from Harvard University's "CS50's Introduction to Program
 
 LED Ravewear: CircuitPython code that is used for current iteration of my ravewear. I am currently working on refactoring that code to better adhere to OOP principles and to add additional functionality.
 
+Pizza Ordering Application: 
+
 Tenmo P2P Payment Application: Tech Elevator Mini Capstone project. Client/Server application that emulates functions found in modern peer-to-peer payment apps using the RESTful API approach. Uses Java, Spring Framework, PostgreSQL.
 
 Vending Machine Application: Tech Elevator Mini Capstone project. Command Line Interface application that models the functionality of a vending machine where inventory is loaded, a customer can add money to vend items, transaction logs and sales reports can be generated.
