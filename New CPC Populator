@@ -1,0 +1,131 @@
+let CPC_LINK = 'https://docs.google.com/spreadsheets/d/1bBC8jAY7p6Yd7Q9F2ANq5rLOF570-qXZPvcfzkKcrdA/edit?gid=18324756#gid=18324756'
+let calSchedule = SpreadsheetApp.openByUrl(CPC_LINK).getSheetByName('calSchedule')
+let dates= calSchedule.getRange(2,2,1,60).getValues()[0].map((date) => {
+  return date.toString()
+})
+const testCalendar = CalendarApp.getCalendarById(calLookup.get("Test Calendar"))
+let startDate = new Date('2024-08-01T00:00:00');
+let endDate = new Date('2124-08-31T23:59:59');
+
+const calLookup =  new Map() //assign calender ids to people
+  calLookup.set('Donelon, Bryan M', '4b4bcd6cb45ed2187a6c2ee11e404392cf6c09b8d6bd11e9b7b702141909a3c9@group.calendar.google.com' )
+  calLookup.set('Williams, David A', '35e33dbe03554686259898f08cef1f3f5420c1e647695b75051e7934cce08b82@group.calendar.google.com')
+  calLookup.set('Walker, Dustin R', '04a100e2dc1be15328d86ea154d0f22e523d9a6ac504fc5c86416dc15cc481bc@group.calendar.google.com')
+  calLookup.set('Smith, Philip M', '9700aaca9dc69c0f1f5d76c7d27d6330420f80e931a32e2a3ba9e514520063cf@group.calendar.google.com')
+  calLookup.set('Someones Calendar','87ea9e59dd09fca4cbae3b9d1d74fbf08767ae4f9c08d28c979529ca82558763@group.calendar.google.com')
+  calLookup.set('Rhine, Jeffrey C','1a3f97080a4edfd489c685415133af2ddb993a48d99c4c364258862b257c1a3f@group.calendar.google.com' )
+  calLookup.set('Marincic, Martin R','68f6d1628c08e982319bff75fb48114f55bff78af8a6e2aa82fd7ccafd8620fd@group.calendar.google.com')
+  calLookup.set('Test Calendar', '00b321e1da4ed63d4d4968a9c3b57060e6e6d5494d9557b1d6226fa13ec6b237@group.calendar.google.com')
+
+const people = BulkSchedulifier.generateNameShiftsObjects()
+
+function populateCPC() {
+  const sheet = SpreadsheetApp.openByUrl(CPC_LINK).getSheetByName('Sheet102')
+  
+  // Get the range of names and dates
+  let names = []
+  
+  people.forEach(person => {
+    names.push(person.name)
+  })
+  const namesRange = sheet.getRange('A3:A11');
+  const datesRange = sheet.getRange('B2:Z2'); 
+  const dates = datesRange.getValues()[0];
+  
+
+  // Create a map for date index lookup
+  const dateIndexMap = {};
+  dates.forEach((date, index) => {
+    const formattedDate = Utilities.formatDate(new Date(date), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    dateIndexMap[formattedDate] = index + 2; // Column number adjustment (B = 2)
+  });
+
+  // Clear existing data in the schedule range (to prevent residual data issues)
+  //sheet.getRange('B3:Z11').clearContent(); // Adjust the range as needed
+
+  // Iterate through each person and their shifts
+  people.forEach(person => {
+    switch (person.name){
+      case "Donelon, Bryan M":
+        person.nickname = "Bryan"
+        person.position = 1
+        break
+      case "Figueroa, Kiovani J":
+        person.nickname = "Kimmy"
+        person.position = 8
+        break
+      case "Glover, Jarrell":
+        person.nickname = "Jorl"
+        person.position = 5
+        break
+      case "Marincic, Martin R":
+        person.nickname = "Marty"
+        person.position = 7
+        break
+      case "Rhine, Jeffrey C":
+        person.nickname = "Jeff"
+        person.position = 6
+        break
+      case "Smith, Philip M":
+        person.nickname = "Felipe"
+        person.position = 4
+        break
+      case "Walker, Dustin R":
+        person.nickname = "Dustin"
+        person.position = 3
+        break
+      case "Williams, David A":
+        person.nickname = "David"
+        person.position = 2
+        break
+    } //assign nickname and position on sheet
+    let rowIndex = names.indexOf(person.name) + 3; // Row number adjustment (A = 1, header row = 2, data starts at 3)
+    rowIndex = (person.position * 2) + 1
+    const nameCell = sheet.getRange(rowIndex,1)
+    nameCell.setValue(person.nickname)
+
+    person.shifts.forEach(shift => {
+      const shiftDate = Utilities.formatDate(new Date(shift.date), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      const colIndex = dateIndexMap[shiftDate];
+      
+      if (colIndex) {
+        const cell = sheet.getRange(rowIndex, colIndex);
+        const breakCell = cell.offset(1,0);
+        const shiftStart = Utilities.formatDate(new Date(shift.shift.begin), Session.getScriptTimeZone(), 'hh:mm a');
+        const shiftEnd = Utilities.formatDate(new Date(shift.shift.end), Session.getScriptTimeZone(), 'hh:mm a');
+        
+        let shiftText = `${shiftStart} - ${shiftEnd}`;
+        let breakText = ""
+        if (shift.breaks.length > 0) {
+          //shiftText += '\nBreaks:\n';
+          shift.breaks.forEach(b => {
+            const breakStart = Utilities.formatDate(new Date(b.begin), Session.getScriptTimeZone(), 'hh:mm a');
+            const breakEnd = Utilities.formatDate(new Date(b.end), Session.getScriptTimeZone(), 'hh:mm a');
+            breakText += `  ${breakStart} - ${breakEnd}\n`;
+          });
+          breakCell.setValue(breakText)
+        }
+        cell.setValue(shiftText);
+      }
+    });
+  });
+}
+
+function populateCalendars() {
+  testCalendar.getEvents(startDate, endDate).forEach(event => {event.deleteEvent()})
+  people.forEach(person => {
+    person.calendar = CalendarApp.getCalendarById(calLookup.get(person.name))
+    let calendar = testCalendar
+    if (person.name != "Donelon, Bryan M"){return}
+    person.shifts.forEach(shift => {
+      calendar.createEvent("Work", shift.shift.begin, shift.shift.end)
+      shift.breaks.forEach(aBreak => {
+        calendar.createEvent("Break", aBreak.begin, aBreak.end)
+      })
+    })
+  })
+}
+
+function main(){
+  
+}
