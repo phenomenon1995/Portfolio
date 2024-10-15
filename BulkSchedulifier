@@ -1,0 +1,103 @@
+ const spreadsheet = SpreadsheetApp.openByUrl("https://docs.google.com/spreadsheets/d/1bBC8jAY7p6Yd7Q9F2ANq5rLOF570-qXZPvcfzkKcrdA/edit?gid=31373310#gid=31373310")
+  const hoursMinutesRegex = /(\d{1,2}):(\d{1,2}) (AM|PM) - (\d{1,2}):(\d{1,2}) (AM|PM)/
+  const blockRangeRegex = /(.*) \[.*\]/
+  let dates = []
+function getParsedSchedule() {
+  const CPC_SHEET_ID = 31373310
+  const bulkSchedulifierTab = spreadsheet.getSheetByName("BulkSchedulifier")
+  const parsedRange = bulkSchedulifierTab.getRange("A1:A300").getValues()
+  dates = parsedRange.slice(3,10).flat()
+  
+ let parsedText =[]
+  for (cell of parsedRange){
+    if (cell[0] != ""){
+      parsedText.push(cell[0])
+    }
+  }
+  return parsedText
+}
+
+function generateNameShiftsObjects(){
+  let result = []
+  let startIndices = []
+  let endIndices = []
+  let dateCounter = 0
+  parsedText = getParsedSchedule()
+
+  for (cell in parsedText){
+    if (parsedText[cell] == "SLMERHBY"){
+      startIndices.push(cell-0)
+      if (startIndices.length > 1){
+        endIndices.push(cell-1)
+      }
+    }
+  }
+  for (i in startIndices){ //loop through each index segment
+    
+    const thisName = parsedText[startIndices[i]-1]
+    const pieces = parsedText.slice(startIndices[i]+1, endIndices[i])
+    let thisShifts = []
+    let oneDayBreaksArray = []
+    let breakArray = []
+    for (piece of pieces){
+      if (piece.substring(piece.length - 1) ===  "]"){
+        if(piece !=="[Off]"){piece = piece.match(blockRangeRegex)[1]}
+         if(oneDayBreaksArray.length != 0){
+          breakArray.push(oneDayBreaksArray)
+          oneDayBreaksArray = []
+        }
+        let shift = {}
+        shift.date = dates[dateCounter]
+        dateCounter++
+        convertedPiece =  convertToDateTimeObjects(shift.date, piece)
+        shift.shift = convertedPiece
+        //shift.breaks = breakArray
+        if (piece === "[Off]"){continue}
+        thisShifts.push(shift)
+      } else {
+        oneDayBreaksArray.push(convertToDateTimeObjects(dates[dateCounter - 1], piece))
+      }
+    }
+    breakArray.push(oneDayBreaksArray)
+    dateCounter = 0 
+    for (i in thisShifts){
+      thisShifts[i].breaks = breakArray[i]
+    }
+    let person = {
+      name: thisName,
+      shifts: thisShifts
+    }
+    result.push(person)
+  }
+  return result
+}
+
+function convertToDateTimeObjects(dateObject, timeString){
+
+  const shift_matches = timeString.match(hoursMinutesRegex)
+  if(shift_matches){
+    if(shift_matches[1] == "12"){shift_matches[1] = 0}
+    if(shift_matches[3] == "PM"){shift_matches[1] = parseInt(shift_matches[1])+12}
+    if(shift_matches[4] == "12"){shift_matches[4] = 0}
+    if(shift_matches[6] == "PM"){shift_matches[4] = parseInt(shift_matches[4])+12}
+    
+    const intArray = [
+      parseInt(shift_matches[1]),
+      parseInt(shift_matches[2]),
+      parseInt(shift_matches[4]),
+      parseInt(shift_matches[5]),
+    ]
+    const result = {
+      begin:new Date (dateObject.setHours(intArray[0],intArray[1])),
+      end: new Date (dateObject.setHours(intArray[2],intArray[3])),
+    }
+    dateObject.setHours(0,0,0)
+    return result
+  }
+}
+
+function play(){
+  let people = generateNameShiftsObjects()
+  console.log(people[0].shifts)
+  
+}
